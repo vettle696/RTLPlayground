@@ -1,62 +1,113 @@
-name: Build firmware
+name: Firmware images
+
+# Builds an image for every machine in machine.h, each in its own job so that
+# no two builds share output/html_min, and keeps the images as artifacts.
+# A tag v* additionally publishes all images as a pre-release.
 
 on:
   push:
     branches: ['**']
+    tags: ['v*']
   pull_request:
+  workflow_dispatch:
 
-permissions:
-  contents: read
-  pull-requests: write
-  issues: write
+env:
+  # Bytes the linker must leave for the stack in internal RAM; the build
+  # fails below this. Internal RAM is full, so every byte a change takes
+  # comes out of the stack.
+  MIN_STACK: 150
 
 jobs:
-  build:
+  machines:
+    runs-on: ubuntu-latest
+    outputs:
+      list: ${{ steps.list.outputs.list }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: list
+        run: |
+          list=$(grep -E '^[[:space:]]*(//[[:space:]]*)?#define MACHINE_' machine.h \
+            | sed -E 's%^[[:space:]]*(//[[:space:]]*)?#define MACHINE_%%' \
+            | awk '{print $1}' | sort -u | jq -Rnc '[inputs]')
+          echo "list=$list" >> "$GITHUB_OUTPUT"
+
+  firmware:
+    needs: machines
     runs-on: ubuntu-latest
     container:
-      image: debian:trixie
-
+      # Arch packages the newest SDCC release; Debian is a release behind
+      image: archlinux:latest
+    strategy:
+      fail-fast: false
+      matrix:
+        machine: ${{ fromJSON(needs.machines.outputs.list) }}
     steps:
-      - uses: actions/checkout@v6
-        with:
-          path: branch
-
-      - uses: actions/checkout@v6
-        with:
-          path: main
-          ref: main
-
+      # git before checkout, so the image carries the commit in its version
       - name: Install dependencies
+        run: pacman -Syu --noconfirm --needed make gcc sdcc tinyxxd python json-c zlib git
+      - uses: actions/checkout@v7
+      - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: Build
+        run: make CI=1 MACHINE=${{ matrix.machine }}
+      - name: Banking check
+        run: python3 tools/check_banking.py --build-dir output/${{ matrix.machine }}
+      - name: Check memory
         run: |
-          apt update
-          apt install make gcc g++ bison flex libboost-dev patch bzip2 curl ca-certificates xxd python-is-python3 libjson-c-dev zlib1g-dev -y
-      - name: Cache the patched SDCC
-        uses: actions/cache@v4
-        with:
-          path: branch/toolchain
-          key: sdcc-${{ hashFiles('branch/sdcc/*') }}
-      - name: Run the host-side unit tests
-        run: cd branch && make -C test
-      - name: Check that every machine definition can be compiled
-        run: cd branch && make machine_check
-      - name: Make project (4x2/RTL8372)
-        run: cd branch && make CI=1 MACHINE="SWGT024_V2_0_MANAGED" && cp output/SWGT024_V2_0_MANAGED/rtlplayground.map /tmp/branch.map
-      - name: Make project (8x1/RTL8373)
-        run: cd branch && make CI=1 MACHINE="KP_9000_9XHML_X_V3_1"
-      - name: Make project with the health instrumentation
-        run: cd branch && make clean && make CI=1 MACHINE="SWGT024_V2_0_MANAGED" HEALTH=1
-      - name: Make main
+          out=output/${{ matrix.machine }}
+          stack=$(sed -nE 's/.*with ([0-9]+) bytes available.*/\1/p' $out/rtlplayground.mem)
+          {
+            echo "### ${{ matrix.machine }}"
+            echo "sdcc $(sdcc -v | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')"
+            echo
+            echo "| | free bytes |"
+            echo "|---|---|"
+            echo "| stack | $stack |"
+            for b in BANK1 BANK2 BANK3 BANK4 BANK5 BANK6 BANK7 BANK8 BANK9 BANK10; do
+              size=$(awk -v b=$b '$1 == b { print $3; exit }' $out/rtlplayground.map)
+              echo "| $b | $((49152 - 16#$size)) |"
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ -z "$stack" ] || [ "$stack" -lt "$MIN_STACK" ]; then
+            echo "::error::stack has ${stack:-?} bytes, below MIN_STACK=$MIN_STACK"
+            exit 1
+          fi
+      - name: Build bridge variant
         run: |
-          ln -s ../branch/toolchain main/toolchain
-          PATH="$(echo "$PWD"/branch/toolchain/sdcc-*/bin):$PATH"
-          cd main && make CI=1 MACHINE="SWGT024_V2_0_MANAGED" && cp output/SWGT024_V2_0_MANAGED/rtlplayground.map /tmp/main.map
-      - name: Calculate bank growth
-        run: |
-          sed -rn 's/^([XCD]SEG|(BANK[0-9])).*=\s+([0-9]+)\. bytes.*$/MAIN_\1=\3/p' /tmp/main.map | sort -u >> "$GITHUB_ENV"
-          sed -rn 's/^([XCD]SEG|(BANK[0-9])).*=\s+([0-9]+)\. bytes.*$/BRANCH_\1=\3/p' /tmp/branch.map | sort -u >> "$GITHUB_ENV"
-          du -sb main/output/SWGT024_V2_0_MANAGED/html_min | awk '{print "MAIN_WEB="$1}' >> "$GITHUB_ENV"
-          du -sb branch/output/SWGT024_V2_0_MANAGED/html_min | awk '{print "BRANCH_WEB="$1}' >>"$GITHUB_ENV"
+          make CI=1 BRIDGE=1 MACHINE=${{ matrix.machine }}
+          python3 tools/check_banking.py --build-dir output/${{ matrix.machine }}
+          # sh (the container's default shell) does not glob-expand
+          # redirection targets, so iterate the matches and redirect
+          # a plain variable instead.
+          for f in output/${{ matrix.machine }}/rtlplayground-*bridge-*.bin; do
+            test "$(wc -c < "$f")" -eq 524288
+          done
       - uses: actions/upload-artifact@v7
         with:
-          name: firmware
-          path: output/SWGT024_V2_0_MANAGED.bin
+          name: firmware-${{ matrix.machine }}
+          path: output/${{ matrix.machine }}/rtlplayground-*.bin
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: firmware
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: firmware-*
+          merge-multiple: true
+          path: images
+      - name: Publish pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > notes.md <<'EOF'
+          Built by CI for every machine in machine.h. These images have not
+          been tried on hardware; keep a way to recover the flash before
+          writing one. Pick the image whose name matches your board exactly.
+          EOF
+          gh release create "$GITHUB_REF_NAME" images/*.bin \
+            --repo "$GITHUB_REPOSITORY" --prerelease \
+            --title "$GITHUB_REF_NAME" --notes-file notes.md
