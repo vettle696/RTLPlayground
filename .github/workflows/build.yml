@@ -56,7 +56,7 @@ jobs:
         run: |
           mkdir -p release_assets
           # 复制常规固件（用于已刷 RTLPlayground 升级或编程器夹子刷机）
-          cp output/rtlplayground.bin release_assets/rtlplayground_FG_4GT_2SX_V2_0.bin
+          cp output/rtlplayground.bin release_assets/rtlplayground_SWGT024_V2_0_MANAGED.bin
           # 复制 OEM 原厂固件升级包（用于原厂管理界面直接升级）
           if [ -f installer/output/rtlplayground_oem_upgrade.bin ]; then
             cp installer/output/rtlplayground_oem_upgrade.bin release_assets/rtlplayground_oem_upgrade_SWGT024_V2_0_MANAGED.bin
