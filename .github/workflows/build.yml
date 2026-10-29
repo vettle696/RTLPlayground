@@ -35,6 +35,16 @@ jobs:
           apt update
           apt install make gcc sdcc xxd python-is-python3 libjson-c-dev zlib1g-dev -y
 
+      - name: Install dependencies
+        run: |
+          apt update
+          apt install make gcc g++ bison flex libboost-dev patch bzip2 curl ca-certificates xxd python-is-python3 libjson-c-dev zlib1g-dev -y
+      - name: Cache the patched SDCC
+        uses: actions/cache@v4
+        with:
+          path: branch/toolchain
+          key: sdcc-${{ hashFiles('branch/sdcc/*') }}
+
       - name: Build Firmware (SWGT024_V2_0_MANAGED)
         run: |
           # 1. 编译基础固件
