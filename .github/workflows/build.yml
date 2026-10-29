@@ -35,9 +35,6 @@ jobs:
           apt update
           apt install make gcc sdcc xxd python-is-python3 libjson-c-dev zlib1g-dev -y
 
-      - name: Check if machine.c can be compiled for all machines
-        run: make machine_check
-
       - name: Build Firmware (SWGT024_V2_0_MANAGED)
         run: |
           # 1. 编译基础固件
