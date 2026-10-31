@@ -22,7 +22,7 @@ permissions:
 
 jobs:
   build:
-    name: Build SWGT024_V2_0_MANAGED Firmware
+    name: Build PCB_K0402WS_V2 Firmware
     runs-on: ubuntu-latest
     container:
       image: debian:trixie
@@ -45,10 +45,10 @@ jobs:
           path: branch/toolchain
           key: sdcc-${{ hashFiles('branch/sdcc/*') }}
 
-      - name: Build Firmware (SWGT024_V2_0_MANAGED)
+      - name: Build Firmware (PCB_K0402WS_V2)
         run: |
           # 1. 编译基础固件
-          make MACHINE="SWGT024_V2_0_MANAGED"
+          make MACHINE="PCB_K0402WS_V2"
           # 2. 编译原厂 OEM Web 固件升级包
           make -C installer
 
@@ -56,10 +56,10 @@ jobs:
         run: |
           mkdir -p release_assets
           # 复制常规固件（用于已刷 RTLPlayground 升级或编程器夹子刷机）
-          cp output/rtlplayground.bin release_assets/rtlplayground_SWGT024_V2_0_MANAGED.bin
+          cp output/rtlplayground.bin release_assets/rtlplayground_PCB_K0402WS_V2.bin
           # 复制 OEM 原厂固件升级包（用于原厂管理界面直接升级）
           if [ -f installer/output/rtlplayground_oem_upgrade.bin ]; then
-            cp installer/output/rtlplayground_oem_upgrade.bin release_assets/rtlplayground_oem_upgrade_SWGT024_V2_0_MANAGED.bin
+            cp installer/output/rtlplayground_oem_upgrade.bin release_assets/rtlplayground_oem_upgrade_PCB_K0402WS_V2.bin
           fi
           echo "=== 待发布的固件列表 ==="
           ls -lh release_assets/
@@ -67,7 +67,7 @@ jobs:
       - name: Upload Firmware Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: RTLPlayground_SWGT024_V2_0_MANAGED_Firmware
+          name: RTLPlayground_PCB_K0402WS_V2_Firmware
           path: release_assets/*
           retention-days: 30
 
@@ -80,12 +80,12 @@ jobs:
           body: |
             ## 🌟 RTLPlayground with Argon Theme 固件发布
 
-            本固件已预装 **Argon 现代主题** 与 **双主题平滑切换引擎**，专为 **SWGT024_V2_0_MANAGED** 交换机编译生成。
+            本固件已预装 **Argon 现代主题** 与 **双主题平滑切换引擎**，专为 **PCB_K0402WS_V2** 交换机编译生成。
 
             ### 📦 包含固件文件说明：
-            - **`rtlplayground_SWGT024_V2_0_MANAGED.bin`**：
+            - **`rtlplayground_PCB_K0402WS_V2.bin`**：
               - **适用场景**：已刷入 RTLPlayground 固件的在线升级，或使用 SOIC-8 夹子编程器断电直刷。
-            - **`rtlplayground_oem_upgrade_SWGT024_V2_0_MANAGED.bin`**：
+            - **`rtlplayground_oem_upgrade_PCB_K0402WS_V2.bin`**：
               - **适用场景**：当前仍为**原厂 OEM 管理固件**时，直接在原厂网页后台的“固件升级”页面上传刷入。
 
             ### 🌐 默认连接信息：
