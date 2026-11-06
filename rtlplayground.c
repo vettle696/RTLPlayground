@@ -1763,7 +1763,7 @@ void main(void)
 	print_cmd_prompt();
 	idle_ready = 1;
 
-	set_sys_led_state(SYS_LED_ON);
+	set_sys_led_state(SYS_LED_OFF);
 
 	cmd_editor_init();
 
