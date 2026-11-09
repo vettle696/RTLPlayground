@@ -28,7 +28,7 @@ extern __xdata uint8_t sfr_data[4];
 void leds_setup(void) __banked
 {
 	print_string("leds_setup called\n");
-	REG_SET(RTL837X_REG_LED_MODE, 0x0021e6b0);
+	REG_SET(RTL837X_REG_LED_MODE, 0x0041e6b0);
 
 	// Disable RLDP (Realtek Loop Detection Protocol) LEDs on loop detection
 	reg_read_m(RTL837X_REG_LED_RLDP_1);
