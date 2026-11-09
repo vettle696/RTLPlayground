@@ -20,7 +20,7 @@ __code const struct machine machine = {
 					LEDS_2G5 | LEDS_LINK | LEDS_ACT, // Amber LED (left)
 					LEDS_1G | LEDS_LINK | LEDS_ACT, // Green LED (left)
 					0
-				  }
+				  },
 				  { LEDS_10G | LEDS_5G | LEDS_2G5 | LEDS_1G | LEDS_100M | LEDS_LINK | LEDS_ACT, // SFP LED
 					0, // unused
 					0, // unused
