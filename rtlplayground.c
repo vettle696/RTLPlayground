@@ -1744,7 +1744,7 @@ void main(void)
 	timer_set(&sfp_poll, SFP_TICK_STEP);
 	idle_ready = 1;
 
-	set_sys_led_state(SYS_LED_ON);
+	set_sys_led_state(SYS_LED_OFF);
 
 	cmd_editor_init();
 
