@@ -16,11 +16,11 @@ __code const struct machine machine = {
 	.reset_pin = GPIO54_ACL_BIT2_EN,
 	.high_leds = { .mux = LED_27 | LED_28_SYS | LED_29, .enable = LED_28_SYS | LED_29 },
 	.port_led_set = { 0, 0, 0, 0, 0, 0, 0, 0, 1},
-	.led_sets = { { LEDS_2G5 | LEDS_LINK | LEDS_ACT, // Green LED (right)
-					0, // unused
-					LEDS_1G | LEDS_100M | LEDS_10M | LEDS_LINK | LEDS_ACT, // Amber LED (left)
+	.led_sets = { { LEDS_2G5 | LEDS_1G | LEDS_100M | LEDS_10M | LEDS_LINK | LEDS_ACT, // Green LED (right)
+					LEDS_2G5 | LEDS_LINK | LEDS_ACT, // Amber LED (left)
+					LEDS_1G | LEDS_LINK | LEDS_ACT, // Green LED (left)
 					0
-				  }, // unused
+				  }
 				  { LEDS_10G | LEDS_5G | LEDS_2G5 | LEDS_1G | LEDS_100M | LEDS_LINK | LEDS_ACT, // SFP LED
 					0, // unused
 					0, // unused
